@@ -15,6 +15,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 #
+import datetime
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
@@ -23,12 +24,14 @@ from django.core.urlresolvers import reverse
 from django.forms import ModelForm
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
+from django.utils import timezone
 
 
 from repomgmt import utils, tasks
 from repomgmt.models import Architecture, BuildNode, BuildRecord
 from repomgmt.models import ChrootTarball, Repository, Series
 from repomgmt.models import UbuntuSeries, PackageSource, Subscription
+from repomgmt.models import PackageSourceBuildProblem
 
 
 class NewArchitectureForm(ModelForm):
@@ -109,8 +112,17 @@ def pkg_sources_list(request):
             else:
                 return new_pkg_source_form(request)
 
+    t = timezone.now() - datetime.timedelta(hours=1)
+    latest_problems = PackageSourceBuildProblem.objects.filter(timestamp__gte=t).order_by('-timestamp')
     return render(request, 'pkg_sources.html',
-                          {'pkg_sources': PackageSource.objects.all()})
+                          {'pkg_sources': PackageSource.objects.all(),
+                           'latest_problems': latest_problems})
+
+
+def problem_detail(request, problem_id):
+    problem = PackageSourceBuildProblem.objects.get(id=problem_id)
+    return render(request, 'pkg_src_build_problem.html',
+                           {'problem': problem})
 
 
 def architecture_list(request):
